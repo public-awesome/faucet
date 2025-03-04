@@ -113,7 +113,7 @@ func (s *Server) welcomeMessage(ds *discordgo.Session) {
 	for _, guild := range ds.State.Guilds {
 		channels, err := ds.GuildChannels(guild.ID)
 		if err != nil {
-			fmt.Printf("Error fetching channels for guild %s: %v\n", guild.Name, err)
+			s.log.Error("error fetching channels for guild", "error", err, "guild", guild)
 			continue
 		}
 		for _, channel := range channels {
