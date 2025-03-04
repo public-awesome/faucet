@@ -1,0 +1,10 @@
+services:
+  faucet:
+    image: public-awesome/faucet:latest
+    env_file:
+      - faucet.env
+    ports:
+      - 8080:8080
+    volumes:
+      - ./faucet-data:/app/data
+    restart: unless-stopped
