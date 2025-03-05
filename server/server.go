@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path"
-	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -42,10 +41,6 @@ type Server struct {
 	client    *client.Client
 	log       *slog.Logger
 	config    *config.Config
-
-	trackMu       sync.Mutex
-	track         map[string]time.Time
-	trackByAuthor map[string]time.Time
 
 	store *Store
 }

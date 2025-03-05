@@ -55,9 +55,6 @@ func (s *Server) getByKey(key string) (*time.Time, error) {
 
 func (s *Server) block(channelId, address, author string, waitPeriod time.Duration) (bool, time.Duration) {
 
-	s.trackMu.Lock()
-	defer s.trackMu.Unlock()
-
 	// track by recipient and by discord user id
 	addressKey := fmt.Sprintf("%s-%s", channelId, address)
 	authorKey := fmt.Sprintf("%s-%s", channelId, author)
@@ -108,6 +105,15 @@ func (s *Server) messageHandler(ds *discordgo.Session, message *discordgo.Messag
 		return
 	}
 
+	parts := parts(message.Content, s.config.ClientConfig.AccountPrefix)
+	if len(parts) == 2 && parts[0] != "$request" {
+		reply := fmt.Sprintf("<@%s> invalid request, please use the `$request <address>` command", message.Author.ID)
+		_, err = ds.ChannelMessageSend(message.ChannelID, reply)
+		if err != nil {
+			s.log.Error("error sending message", "error", err)
+		}
+		return
+	}
 	faucetInterval, ok := s.config.FaucetChannelInterval[channel.Name]
 	if !ok {
 		faucetInterval = time.Hour * 24 * 5
@@ -127,16 +133,7 @@ func (s *Server) messageHandler(ds *discordgo.Session, message *discordgo.Messag
 		s.log.Error("error generating uuid", "error", err)
 		return
 	}
-	parts := parts(message.Content, s.config.ClientConfig.AccountPrefix)
 
-	if len(parts) == 2 && parts[0] != "$request" {
-		reply := fmt.Sprintf("<@%s> invalid request, please use the `$request <address>` command", message.Author.ID)
-		_, err = ds.ChannelMessageSend(message.ChannelID, reply)
-		if err != nil {
-			s.log.Error("error sending message", "error", err)
-		}
-		return
-	}
 	req := &SendRequest{
 		ID:          requestID.String(),
 		GuildID:     channel.GuildID,
