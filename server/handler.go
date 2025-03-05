@@ -28,23 +28,65 @@ func parts(message, accountPrefix string) []string {
 	return filteredPars
 }
 
+func timetoBytes(t time.Time) ([]byte, error) {
+	return t.MarshalBinary()
+}
+
+func bytesToTime(b []byte) (time.Time, error) {
+	var t time.Time
+	err := t.UnmarshalBinary(b)
+	return t, err
+}
+func (s *Server) getByKey(key string) (*time.Time, error) {
+	lastRequest, err := s.store.Get([]byte(key))
+	if err != nil && err != ErrNotFound {
+		return nil, err
+	}
+	if err == ErrNotFound {
+		return nil, nil
+	}
+	lastRequestTime, err := bytesToTime(lastRequest)
+	if err != nil {
+		return nil, err
+	}
+	return &lastRequestTime, nil
+
+}
+
 func (s *Server) block(channelId, address, author string, waitPeriod time.Duration) (bool, time.Duration) {
+
 	s.trackMu.Lock()
 	defer s.trackMu.Unlock()
 
+	// track by recipient and by discord user id
 	addressKey := fmt.Sprintf("%s-%s", channelId, address)
 	authorKey := fmt.Sprintf("%s-%s", channelId, author)
-	previous, ok := s.track[addressKey]
-	if ok && time.Since(previous) < waitPeriod {
-		return true, waitPeriod - time.Since(previous)
-	}
-	previousAuthor, ok := s.trackByAuthor[authorKey]
-	if ok && time.Since(previousAuthor) < waitPeriod {
-		return true, waitPeriod - time.Since(previousAuthor)
+
+	lastRequestByAddress, err := s.getByKey(addressKey)
+	if err != nil && err != ErrNotFound {
+		s.log.Error("error getting address key", "error", err, "address_key", addressKey)
 	}
 
-	s.track[addressKey] = time.Now()
-	s.trackByAuthor[authorKey] = time.Now()
+	if lastRequestByAddress != nil && time.Since(*lastRequestByAddress) < waitPeriod {
+		waitPeriod = waitPeriod - time.Since(*lastRequestByAddress)
+		return true, waitPeriod
+	}
+
+	lastRequestByAuthor, err := s.getByKey(authorKey)
+	if err != nil && err != ErrNotFound {
+		s.log.Error("error getting author key", "error", err, "author_key", authorKey)
+	}
+	if lastRequestByAuthor != nil && time.Since(*lastRequestByAuthor) < waitPeriod {
+		waitPeriod = waitPeriod - time.Since(*lastRequestByAuthor)
+		return true, waitPeriod
+	}
+	now, err := timetoBytes(time.Now())
+	if err != nil {
+		s.log.Error("error getting now", "error", err)
+		return false, 0
+	}
+	s.store.Set([]byte(addressKey), now)
+	s.store.Set([]byte(authorKey), now)
 	return false, 0
 }
 func (s *Server) messageHandler(ds *discordgo.Session, message *discordgo.MessageCreate) {
@@ -87,7 +129,7 @@ func (s *Server) messageHandler(ds *discordgo.Session, message *discordgo.Messag
 	}
 	parts := parts(message.Content, s.config.ClientConfig.AccountPrefix)
 
-	if len(parts) == 2 {
+	if len(parts) == 2 && parts[0] != "$request" {
 		reply := fmt.Sprintf("<@%s> invalid request, please use the `$request <address>` command", message.Author.ID)
 		_, err = ds.ChannelMessageSend(message.ChannelID, reply)
 		if err != nil {

@@ -21,6 +21,8 @@ type Config struct {
 
 	ClientConfig ClientConfig `env:",prefix=FAUCET_CLIENT_"`
 	ExplorerURL  string       `env:"FAUCET_EXPLORER_URL"`
+
+	StorePath string `env:"FAUCET_STORE_PATH, default=faucet-data"`
 }
 
 type ClientConfig struct {

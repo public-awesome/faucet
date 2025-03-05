@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path"
 	"sync"
 	"time"
 
@@ -45,6 +46,8 @@ type Server struct {
 	trackMu       sync.Mutex
 	track         map[string]time.Time
 	trackByAuthor map[string]time.Time
+
+	store *Store
 }
 
 func NewServer(log *slog.Logger) (*Server, error) {
@@ -63,14 +66,18 @@ func NewServer(log *slog.Logger) (*Server, error) {
 		client.WithGasAmount(config.ClientConfig.GasAmount),
 		client.WithGasPrices(config.ClientConfig.GasPrices),
 	)
+
+	store, err := NewStore(path.Join(config.StorePath, "faucet.db"))
+	if err != nil {
+		return nil, err
+	}
 	return &Server{
-		requests:      make(chan *SendRequest),
-		responses:     make(chan *SendResponse),
-		client:        client,
-		log:           log,
-		config:        config,
-		track:         make(map[string]time.Time),
-		trackByAuthor: make(map[string]time.Time),
+		requests:  make(chan *SendRequest),
+		responses: make(chan *SendResponse),
+		client:    client,
+		log:       log,
+		config:    config,
+		store:     store,
 	}, nil
 }
 
@@ -137,7 +144,12 @@ func (s *Server) Run(ctx context.Context) error {
 	s.log.Info("using faucet address", "address", s.client.FaucetAddress())
 	go s.ProcessRequests(ctx)
 
-	s.log.Info("stopping server")
+	defer func() {
+		err := s.store.Close()
+		if err != nil {
+			s.log.Error("error closing store", "error", err)
+		}
+	}()
 
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + s.config.FaucetBotToken)
@@ -152,14 +164,12 @@ func (s *Server) Run(ctx context.Context) error {
 	if err != nil {
 		s.log.Error("error opening discord session", "error", err)
 	}
-
+	defer dg.Close()
 	s.welcomeMessage(dg)
 	go s.processResponses(ctx, dg)
 
 	<-ctx.Done()
-
-	// Cleanly close down the Discord session.
-	dg.Close()
+	s.log.Info("stopping server")
 
 	return nil
 }
