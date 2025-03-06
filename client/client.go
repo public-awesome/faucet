@@ -6,6 +6,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 type Client struct {
@@ -86,4 +87,9 @@ func (c *Client) BankSend(ctx context.Context, address, amount string) (string, 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	return c.transfer(timeoutCtx, c.txFactory, c.txConfig, address, amount)
+}
+
+func (c *Client) ValidAddress(address string) bool {
+	_, err := sdk.GetFromBech32(address, c.accountPrefix)
+	return err == nil
 }

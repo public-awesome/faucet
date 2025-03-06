@@ -112,6 +112,9 @@ func (s *Server) ProcessRequests(ctx context.Context) {
 	}
 }
 func (s *Server) welcomeMessage(ds *discordgo.Session) {
+	if s.config.DisableWelcomeMessage {
+		return
+	}
 	for _, guild := range ds.State.Guilds {
 		channels, err := ds.GuildChannels(guild.ID)
 		if err != nil {

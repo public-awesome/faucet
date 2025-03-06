@@ -114,6 +114,16 @@ func (s *Server) messageHandler(ds *discordgo.Session, message *discordgo.Messag
 		}
 		return
 	}
+
+	valid := s.client.ValidAddress(parts[1])
+	if !valid {
+		reply := fmt.Sprintf("<@%s> invalid address, please use a valid address", message.Author.ID)
+		_, err = ds.ChannelMessageSend(message.ChannelID, reply)
+		if err != nil {
+			s.log.Error("error sending message", "error", err)
+		}
+		return
+	}
 	faucetInterval, ok := s.config.FaucetChannelInterval[channel.Name]
 	if !ok {
 		faucetInterval = time.Hour * 24 * 5

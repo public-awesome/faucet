@@ -23,6 +23,8 @@ type Config struct {
 	ExplorerURL  string       `env:"FAUCET_EXPLORER_URL"`
 
 	StorePath string `env:"FAUCET_STORE_PATH, default=faucet-data"`
+
+	DisableWelcomeMessage bool `env:"DISABLE_WELCOME_MESSAGE, default=false"`
 }
 
 type ClientConfig struct {
