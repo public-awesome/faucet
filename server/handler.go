@@ -114,7 +114,10 @@ func (s *Server) messageHandler(ds *discordgo.Session, message *discordgo.Messag
 		}
 		return
 	}
-
+	if len(parts) != 2 {
+		s.log.Info("invalid request", "request", message.Content)
+		return
+	}
 	valid := s.client.ValidAddress(parts[1])
 	if !valid {
 		reply := fmt.Sprintf("<@%s> invalid address, please use a valid address", message.Author.ID)
