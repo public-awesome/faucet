@@ -20,6 +20,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	server.Run(ctx)
+	err = server.Run(ctx)
+	if err != nil {
+		slog.Error("failed to run server", "error", err)
+		os.Exit(1)
+	}
 
 }

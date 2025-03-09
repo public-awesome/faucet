@@ -140,7 +140,6 @@ func (s *Server) welcomeMessage(ds *discordgo.Session) {
 func (s *Server) Run(ctx context.Context) error {
 	s.log.Info("starting server")
 	s.log.Info("using faucet address", "address", s.client.FaucetAddress())
-	go s.ProcessRequests(ctx)
 
 	defer func() {
 		err := s.store.Close()
@@ -161,9 +160,11 @@ func (s *Server) Run(ctx context.Context) error {
 	err = dg.Open()
 	if err != nil {
 		s.log.Error("error opening discord session", "error", err)
+		return err
 	}
 	defer dg.Close()
 	s.welcomeMessage(dg)
+	go s.ProcessRequests(ctx)
 	go s.processResponses(ctx, dg)
 
 	<-ctx.Done()
